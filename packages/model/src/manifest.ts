@@ -17,7 +17,7 @@ export interface ProfileAxis {
 /** Characteristic-profile trigger predicate on twin facts (incl. time). */
 export interface TriggerPredicate {
   kind: "regulatory" | "voluntary";
-  /** Free-form predicate expression; Prellel-bound in the full registry. */
+  /** Free-form predicate expression; Primmel-bound in the full registry. */
   expression?: string;
   /** Clock-fired applicability, e.g. age > 100 years. */
   timePredicate?: string;
@@ -33,7 +33,7 @@ export interface ProfileDefinition {
   trigger?: TriggerPredicate;
   /** Data-point list: references into the L3 semantic registry. */
   dataPoints: RegistryItemRef[];
-  /** Registered transform bindings (Prellel packages, deterministic). */
+  /** Registered transform bindings (Primmel packages, deterministic). */
   transforms?: RegistryItemRef[];
   languages: string[];
   trustRequirements?: TrustRequirements;
