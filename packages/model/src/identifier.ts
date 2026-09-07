@@ -1,5 +1,5 @@
 /**
- * L0 identity (PLAN.md invariant I1, I3): one subject, one identity, never
+ * L0 identity (the UniDPP design framework invariant I1, I3): one subject, one identity, never
  * re-minted. Identifiers are scheme-agnostic (ISO/IEC 15459 primary; bridges
  * to GS1, Handle, Ecode, MA). Dormant identifiers are first-class: absorption
  * records at finest available granularity, future regimes adopt them.
@@ -33,7 +33,7 @@ export interface ProductIdentifier {
   state: IdentifierState;
 }
 
-/** Identity lattice (PLAN.md "type-configuration lattice"). */
+/** Identity lattice (the UniDPP design framework "type-configuration lattice"). */
 export interface TypeReference {
   /** Registered type (model) identifier. */
   typeId: ProductIdentifier;

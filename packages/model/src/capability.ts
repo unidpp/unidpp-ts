@@ -18,7 +18,7 @@ export interface CapabilityProfile {
 }
 
 /**
- * Truth mode per PLAN.md: the twin is testimonial by default, sensorial by
+ * Truth mode per the UniDPP design framework: the twin is testimonial by default, sensorial by
  * exception; profiles declare per data element the required truth mode.
  */
 export type TruthMode = "attest-sampled" | "self-committed" | "both-with-precedence";

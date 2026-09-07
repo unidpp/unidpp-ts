@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import { validateEvent, validateIdentifier, validateLink, validateManifest, validateTierAPack } from "../src/schemas.js";
 import { buildLaptop } from "../src/fixtures/laptop.js";
 import { buildCar } from "../src/fixtures/car.js";
-import { appendEvent, logHead, verifyChain } from "../src/events.js";
+import { appendEvent, blindEdgeCommitment, logHead, verifyChain } from "../src/events.js";
+import { commitment } from "../src/canonical.js";
 import { freshnessSatisfiable, CLASS_CAPABILITY } from "../src/capability.js";
 import { markerAtLeast, signatureVoided } from "../src/trust.js";
 import { downstreamOf, isVisibleTo } from "../src/links.js";
@@ -40,6 +41,15 @@ describe("json schema validation", () => {
   it("validates events against the event schema", async () => {
     const { events } = await buildLaptop();
     for (const event of events) expect(validateEvent(event).valid).toBe(true);
+  });
+
+  it("validates the laptop fixture links against the schema (parentCommitment is real, not a placeholder)", async () => {
+    const { links } = await buildLaptop();
+    for (const link of links) {
+      const result = validateLink(link);
+      expect(result.valid, JSON.stringify(result.issues)).toBe(true);
+    }
+    expect(links[0]!.parentCommitment).toMatch(/^[0-9a-f]{64}$/);
   });
 
   it("rejects a manifest with a bad commitment pattern", async () => {
@@ -172,5 +182,33 @@ describe("relationship algebra", () => {
     const { links } = await buildCar();
     const down = downstreamOf(links, "urn:iso:std:iso-iec:15459:unidpp:passport:car-wvwzzz1jzxw000841");
     expect(down.has("urn:iso:std:iso-iec:15459:unidpp:passport:battery-pack-bp52-000841")).toBe(true);
+  });
+});
+
+describe("blind edges (R3 proof-of-binding ≠ knowledge-of-parent)", () => {
+  it("laptop battery edge commitment is salted (matches the Python port byte-for-byte)", async () => {
+    const { links } = await buildLaptop();
+    const link = links[0]!;
+    const expected = await commitment(
+      { parent: "urn:iso:std:iso-iec:15459:unidpp:passport:84120099012345", slot: "battery-bay-1" },
+      "salt-bp52-000841",
+    );
+    expect(link.parentCommitment).toBe(expected);
+    // The unsalted commitment differs: no log operator can correlate edges.
+    const unsalted = await commitment({
+      parent: "urn:iso:std:iso-iec:15459:unidpp:passport:84120099012345",
+      slot: "battery-bay-1",
+    });
+    expect(link.parentCommitment).not.toBe(unsalted);
+    expect(link.parentCommitment).toMatch(/^[0-9a-f]{64}$/);
+  });
+
+  it("blindEdgeCommitment is deterministic and salt-sensitive", async () => {
+    const c1 = await blindEdgeCommitment("urn:x:parent", "slot-1", "salt");
+    const c2 = await blindEdgeCommitment("urn:x:parent", "slot-1", "salt");
+    const c3 = await blindEdgeCommitment("urn:x:parent", "slot-1", "other-salt");
+    expect(c1).toBe(c2);
+    expect(c1).not.toBe(c3);
+    expect(c1).toMatch(/^[0-9a-f]{64}$/);
   });
 });

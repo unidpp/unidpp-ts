@@ -1,5 +1,5 @@
 /**
- * L1 neutral core + L2 profile manifest (PLAN.md stream 11). The core is a
+ * L1 neutral core + L2 profile manifest (the UniDPP design framework stream 11). The core is a
  * minimal skeleton; every regional requirement is a *profile*: a registered,
  * versioned object bound by dated applicability. Profile-set growth is dated
  * binding, never new identity (source invariant 9).
@@ -47,7 +47,7 @@ export interface RegistryItemRef {
 }
 
 export interface TrustRequirements {
-  /** Jurisdiction-bound crypto suites (PLAN.md L4): profile, not platform. */
+  /** Jurisdiction-bound crypto suites (the UniDPP design framework L4): profile, not platform. */
   suites: string[]; // e.g. ["ecdsa-p256-sha256", "sm2-sm3", "ml-dsa-65"]
   trustList: string; // trust-list / master-list reference URI
   /** Minimum trust marker per data class; safety-critical must be attested. */

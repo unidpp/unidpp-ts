@@ -1,11 +1,11 @@
 /**
- * Worked pilot fixture (PLAN.md stream 11 deliverable): a laptop with EU and
+ * Worked pilot fixture (the UniDPP design framework stream 11 deliverable): a laptop with EU and
  * JP jurisdiction profiles on ONE neutral core — no region is the universal
  * envelope. Child references compose by identity reference, never data
  * copying. Deterministic timestamps; commitments computed on build.
  */
 import type { DomainEvent } from "../events.js";
-import { appendEvent, logHead } from "../events.js";
+import { appendEvent, blindEdgeCommitment, logHead } from "../events.js";
 import type { PassportLink } from "../links.js";
 import type { ChildReference, PassportManifest, ProfileDefinition } from "../manifest.js";
 import type { ProductIdentifier } from "../identifier.js";
@@ -218,6 +218,12 @@ export async function buildLaptop(): Promise<LaptopFixture> {
     capabilityClass: "S0",
     asOf: "2027-02-11T10:44:00Z",
   };
+  // R3 edge: proof-of-binding without knowledge-of-parent — real salted
+  // blind-edge commitment (same discipline as the car fixture and the
+  // Python port), not a decorative placeholder. Satisfies the wire schema's
+  // ^[0-9a-f]{64}$ pattern; verifiable against the py port byte-for-byte.
+  const parentCommitment = await blindEdgeCommitment(LAPTOP_PASSPORT_ID.value, "battery-bay-1", "salt-bp52-000841");
+
   const links: PassportLink[] = [
     {
       type: "installation",
@@ -229,7 +235,7 @@ export async function buildLaptop(): Promise<LaptopFixture> {
       slotId: "battery-bay-1",
       pairing: "firmware",
       visibility: { edge: "blind" },
-      parentCommitment: "6a1b3c5d8e9f0a2b4c6d8e0f2a4b6c8d0e2f4a6b8c0d2e4f6a8b0c2d4e6f80",
+      parentCommitment,
     },
   ];
   return { manifest, events, profiles: [EU_ELECTRONICS_PROFILE, JP_PSE_PROFILE], links };

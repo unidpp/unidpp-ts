@@ -47,7 +47,7 @@ export interface SignatureFraming {
   value: string;
 }
 
-/** Revocation reason determines retroactivity (PLAN.md distrust doctrine). */
+/** Revocation reason determines retroactivity (the UniDPP design framework distrust doctrine). */
 export type RevocationReason =
   | "key-compromise" // prospective from detection time
   | "cessation"

@@ -1,5 +1,5 @@
 /**
- * Car example (PLAN.md P4 pilot core): composite products are a federation of
+ * Car example (the UniDPP design framework P4 pilot core): composite products are a federation of
  * passports, not one mega-passport. The car has one passport; the battery —
  * independently regulated — has its own, joined by typed child references.
  * The single QR on the car resolves the car's identity; children join by
@@ -7,11 +7,10 @@
  * record absorption at finest available granularity (I3).
  */
 import type { DomainEvent } from "../events.js";
-import { appendEvent, logHead } from "../events.js";
+import { appendEvent, blindEdgeCommitment, logHead } from "../events.js";
 import type { PassportLink } from "../links.js";
 import type { ChildReference, PassportManifest, ProfileDefinition } from "../manifest.js";
 import type { ProductIdentifier } from "../identifier.js";
-import { commitment } from "../canonical.js";
 
 export const CAR_INSTANCE_ID: ProductIdentifier = {
   scheme: "vin",
@@ -253,7 +252,7 @@ export async function buildCar(): Promise<CarFixture> {
 
   // R3 edge: proof-of-binding without knowledge-of-parent — salted
   // commitment to the parent in the child's log.
-  const parentCommitment = await commitment({ parent: CAR_PASSPORT_ID.value, slot: "traction-battery-1" }, "salt-bp52-000841");
+  const parentCommitment = await blindEdgeCommitment(CAR_PASSPORT_ID.value, "traction-battery-1", "salt-bp52-000841");
 
   const links: PassportLink[] = [
     {

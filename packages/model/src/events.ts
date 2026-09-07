@@ -145,3 +145,17 @@ export function logHead(log: DomainEvent[]): { commitment: string; height: numbe
     height: log.length,
   };
 }
+
+/**
+ * R3 blind edge: salted commitment to the parent (+slot) in the child's log.
+ * Proof-of-binding without knowledge-of-parent — log operators cannot
+ * correlate edges; the binding is provable when the salt is revealed.
+ * Mirrors the Python port's ``blind_edge_commitment`` (eventlog.py).
+ */
+export async function blindEdgeCommitment(
+  parentPassportValue: string,
+  slot: string,
+  salt: string,
+): Promise<string> {
+  return commitment({ parent: parentPassportValue, slot }, salt);
+}
