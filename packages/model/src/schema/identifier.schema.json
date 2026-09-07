@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://unidpp.org/schemas/2026/identifier.schema.json",
+  "title": "Product identifier (L0)",
+  "description": "Scheme-agnostic identifier; never re-minted (I1).",
+  "$defs": {
+    "granularity": { "enum": ["model", "type", "batch", "lot", "item"] },
+    "state": { "enum": ["dormant", "live", "consumed", "retired"] },
+    "productIdentifier": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scheme", "value", "granularity", "state"],
+      "properties": {
+        "scheme": { "type": "string", "minLength": 1 },
+        "value": { "type": "string", "minLength": 1 },
+        "granularity": { "$ref": "#/$defs/granularity" },
+        "state": { "$ref": "#/$defs/state" }
+      }
+    },
+    "typeReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["typeId", "typeVersion"],
+      "properties": {
+        "typeId": { "$ref": "#/$defs/productIdentifier" },
+        "typeVersion": { "type": "string", "minLength": 1 },
+        "configurationVector": { "type": "array", "items": { "type": "string" } }
+      }
+    }
+  },
+  "$ref": "#/$defs/productIdentifier"
+}

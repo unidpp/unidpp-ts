@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://unidpp.org/schemas/2026/event.schema.json",
+  "title": "Domain event (I4 append-only log)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["eventId", "type", "subject", "occurredAt", "actor", "trustMarker", "prevCommitment", "commitment"],
+  "properties": {
+    "eventId": { "type": "string", "minLength": 1 },
+    "type": {
+      "enum": [
+        "passport.created",
+        "profile.binding",
+        "custody.transfer",
+        "part.replace",
+        "repair.perform",
+        "product.modify",
+        "software.update",
+        "upgrade.install",
+        "refurbish.perform",
+        "consumable.replace",
+        "recall.campaign",
+        "correction.record",
+        "status.change",
+        "flag.security",
+        "material.decompose",
+        "inspection.stamp",
+        "milestone.record"
+      ]
+    },
+    "subject": { "type": "string", "format": "uri" },
+    "occurredAt": { "type": "string", "format": "date-time" },
+    "actor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["actorId", "role"],
+      "properties": {
+        "actorId": { "type": "string", "minLength": 1 },
+        "role": {
+          "enum": [
+            "economic-operator",
+            "custodian",
+            "repairer",
+            "installer",
+            "refurbisher",
+            "recycler",
+            "regulator",
+            "device",
+            "verifier",
+            "registrar",
+            "qualified-attestor"
+          ]
+        },
+        "credentialRef": { "type": "string" }
+      }
+    },
+    "payload": true,
+    "trustMarker": {
+      "enum": ["unsigned", "self-declared", "third-party-attested", "multi-signed", "log-anchored"]
+    },
+    "prevCommitment": { "type": "string", "pattern": "^$|^[0-9a-f]{64}$" },
+    "commitment": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+  }
+}

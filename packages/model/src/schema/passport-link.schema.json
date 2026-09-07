@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://unidpp.org/schemas/2026/passport-link.schema.json",
+  "title": "PassportLink (I5 typed relationship algebra)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["type", "from", "to", "direction", "interval", "visibility"],
+  "properties": {
+    "type": {
+      "enum": ["association", "derivation", "installation", "type-lineage", "custody", "membership"]
+    },
+    "from": { "type": "string", "format": "uri" },
+    "to": { "type": "string", "format": "uri" },
+    "direction": { "enum": ["up", "down", "symmetric"] },
+    "interval": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["from"],
+      "properties": {
+        "from": { "type": "string", "format": "date-time" },
+        "until": { "type": "string", "format": "date-time" }
+      }
+    },
+    "binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["method", "recoverability"],
+      "properties": {
+        "method": { "type": "string", "minLength": 1 },
+        "recoverability": { "enum": ["restorable", "harvestable", "destructive", "absorbing"] }
+      }
+    },
+    "slotId": { "type": "string" },
+    "pairing": { "enum": ["none", "firmware", "key", "module"] },
+    "alteration": { "type": "array", "items": { "type": "string" } },
+    "visibility": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["edge"],
+      "properties": {
+        "edge": { "enum": ["public", "restricted", "blind", "escrowed"] },
+        "escrow": { "enum": ["none", "trustee"] },
+        "audiences": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "parentCommitment": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+  }
+}

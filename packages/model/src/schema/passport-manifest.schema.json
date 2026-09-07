@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://unidpp.org/schemas/2026/passport-manifest.schema.json",
+  "title": "Passport manifest (L1 neutral core)",
+  "description": "Minimal skeleton: identity, status, profile bindings, child references, log head.",
+  "$defs": {
+    "effectiveWindow": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["from"],
+      "properties": {
+        "from": { "type": "string", "format": "date-time" },
+        "until": { "type": "string", "format": "date-time" },
+        "retroactive": { "type": "boolean" }
+      }
+    },
+    "profileBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["profileId", "version", "effective"],
+      "properties": {
+        "profileId": { "type": "string", "minLength": 1 },
+        "version": { "type": "string", "minLength": 1 },
+        "effective": { "$ref": "#/$defs/effectiveWindow" },
+        "bindingEventId": { "type": "string" }
+      }
+    },
+    "visibilityClause": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["edge"],
+      "properties": {
+        "edge": { "enum": ["public", "restricted", "blind", "escrowed"] },
+        "escrow": { "enum": ["none", "trustee"] },
+        "audiences": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "childReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["childId", "relationship", "visibility"],
+      "properties": {
+        "childId": { "type": "string", "format": "uri" },
+        "relationship": { "enum": ["installation", "membership", "derivation"] },
+        "slotId": { "type": "string" },
+        "pairing": { "enum": ["none", "firmware", "key", "module"] },
+        "binding": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["method", "recoverability"],
+          "properties": {
+            "method": { "type": "string", "minLength": 1 },
+            "recoverability": { "enum": ["restorable", "harvestable", "destructive", "absorbing"] }
+          }
+        },
+        "visibility": { "$ref": "#/$defs/visibilityClause" },
+        "dormant": { "type": "boolean" }
+      }
+    }
+  },
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["passportId", "subjectId", "status", "profiles", "children", "eventLog", "capabilityClass", "asOf"],
+  "properties": {
+    "passportId": { "$ref": "identifier.schema.json#/$defs/productIdentifier" },
+    "subjectId": { "$ref": "identifier.schema.json#/$defs/productIdentifier" },
+    "typeRef": { "$ref": "identifier.schema.json#/$defs/typeReference" },
+    "status": {
+      "enum": ["draft", "active", "suspended", "non-conformant-pending-reevaluation", "invalid", "archived"]
+    },
+    "profiles": { "type": "array", "items": { "$ref": "#/$defs/profileBinding" } },
+    "children": { "type": "array", "items": { "$ref": "#/$defs/childReference" } },
+    "eventLog": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["logUri", "commitment", "height"],
+      "properties": {
+        "logUri": { "type": "string", "format": "uri" },
+        "commitment": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "height": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "capabilityClass": { "enum": ["S0", "S1", "S2", "S3"] },
+    "asOf": { "type": "string", "format": "date-time" }
+  }
+}
