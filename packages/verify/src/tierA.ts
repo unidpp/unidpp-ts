@@ -4,13 +4,21 @@
  * revocation semantics per verification reading, and produce a verdict with
  * a coverage report. Stale/offline data degrades explicitly — never silently
  * passes.
+ *
+ * Multi-suite packs (the sovereign co-signature model): every filled slot
+ * is graded by the per-suite policy in `slotPolicy.ts` — P-256 verifies
+ * via WebCrypto where available; SM2/ML-DSA slots defer with an explicit
+ * reason; an unpinned key id degrades that slot only. Degrade, never
+ * fake, never crash.
  */
 import type { RevocationRecord, SignatureFraming, TierAPack, TrustMarker, VerificationReading } from "@unidpp/model";
-import { canonicalJson, fromBase64, validateTierAPack, markerAtLeast, signatureVoided } from "@unidpp/model";
+import { canonicalJson, validateTierAPack, markerAtLeast, signatureVoided } from "@unidpp/model";
 import type { CoverageReport, Finding, Freshness, Verdict, VerdictOutcome } from "@unidpp/model";
 import { combineOutcome, outcomeForFreshness } from "@unidpp/model";
 import type { CryptoSlots, TrustAnchors } from "./crypto.js";
 import { defaultSlots } from "./crypto.js";
+import type { SlotCheck } from "./slotPolicy.js";
+import { checkSlot } from "./slotPolicy.js";
 
 export interface VerifyOptions {
   /** Pre-cached trust anchors (offline Tier-A doctrine). */
@@ -116,51 +124,85 @@ export async function verifyTierAPack(pack: unknown, options: VerifyOptions): Pr
   checks += 1;
   if (freshness === "fresh") passed += 1;
 
-  // Signature framings.
+  // Signature framings: each filled slot goes through the per-suite
+  // honesty ladder (`checkSlot`) — deferred suites and unpinned key ids
+  // degrade that slot only; only a signature failing under its pinned
+  // anchor fails. The mapping from `SlotCheck` to verdict vocabulary
+  // lives in this one loop; the slot policy itself lives in one place.
   for (const framing of typed.signatures) {
-    const slot = slots.get(framing.suite);
-    const key = options.anchors.get(framing.keyId);
-    if (slot === undefined) {
-      unsupported += 1;
-      findings.push({
-        severity: "warning",
-        code: "suite-unsupported",
-        message: `no crypto slot for suite ${framing.suite} (profile-bound suite; register the binding)`,
-      });
-      outcomes.push("degraded");
-      continue;
-    }
-    if (key === undefined) {
-      failed += 1;
-      findings.push({ severity: "error", code: "key-unanchored", message: `keyId ${framing.keyId} not in cached trust anchors` });
-      outcomes.push("fail");
-      continue;
-    }
-    anchoredKeys += 1;
-    checks += 1;
-    // Revocation semantics per reading.
     const voided = (options.revocations ?? []).some((rec) => rec.keyId === framing.keyId && signatureVoided(rec, framing.signedAt, reading));
-    if (voided) {
-      failed += 1;
-      findings.push({
-        severity: "error",
-        code: "signature-voided",
-        message: `signature by ${framing.keyId} voided under ${reading} reading`,
-      });
-      outcomes.push("fail");
-      continue;
+    const check = await checkSlot({
+      framing,
+      payload,
+      slots,
+      anchors: options.anchors,
+      voided,
+      voidedReason: `signature by ${framing.keyId} voided under ${reading} reading`,
+    });
+    if (check.kind !== "deferred" && check.kind !== "unknown-key" && (check.kind !== "invalid" || options.anchors.has(framing.keyId))) {
+      anchoredKeys += 1;
     }
-    const ok = await slot.verify({ suite: framing.suite, payload, signature: fromBase64(framing.value), publicKey: key });
-    if (ok) {
-      verified += 1;
-      passed += 1;
-      const marker: TrustMarker = framing.suite.includes("testmac") ? "self-declared" : "third-party-attested";
-      if (strongest === "unsigned" || markerAtLeast(marker, strongest)) strongest = marker;
-    } else {
-      failed += 1;
-      findings.push({ severity: "error", code: "signature-invalid", message: `signature by ${framing.keyId} (${framing.suite}) failed verification` });
-      outcomes.push("fail");
+    switch (check.kind) {
+      case "verified": {
+        verified += 1;
+        checks += 1;
+        passed += 1;
+        const marker: TrustMarker = framing.suite.includes("testmac") ? "self-declared" : "third-party-attested";
+        if (strongest === "unsigned" || markerAtLeast(marker, strongest)) strongest = marker;
+        break;
+      }
+      case "unknown-key": {
+        const pinned = check.anchorKeyIds.length === 0 ? "nothing" : check.anchorKeyIds.join(",");
+        findings.push({
+          severity: "warning",
+          code: "key-unanchored",
+          message: `slot names key ${check.keyId} but the anchor set pins ${pinned}: the verifier's trust configuration does not cover this signer`,
+        });
+        outcomes.push("degraded");
+        break;
+      }
+      case "invalid": {
+        failed += 1;
+        checks += 1;
+        findings.push({
+          severity: "error",
+          code: "signature-invalid",
+          message: `signature by ${framing.keyId} (${framing.suite}) failed verification: ${check.why}`,
+        });
+        outcomes.push("fail");
+        break;
+      }
+      case "deferred": {
+        unsupported += 1;
+        findings.push({
+          severity: "warning",
+          code: "suite-unsupported",
+          message: `suite ${check.suite} deferred in this build: ${check.reason}`,
+        });
+        outcomes.push("degraded");
+        break;
+      }
+      case "voided": {
+        failed += 1;
+        checks += 1;
+        findings.push({ severity: "error", code: "signature-voided", message: check.reason });
+        outcomes.push("fail");
+        break;
+      }
     }
+  }
+
+  // Whole-degradation honesty: when every slot deferred (nothing this
+  // build computes — e.g. a pure-SM2 pack in an EU-classical browser),
+  // say so at verdict level instead of leaving the reader to sum the
+  // per-slot findings.
+  if (typed.signatures.length > 0 && verified === 0 && failed === 0 && unsupported === typed.signatures.length) {
+    const suites = [...new Set(typed.signatures.map((f) => f.suite))].join(", ");
+    findings.push({
+      severity: "warning",
+      code: "no-computed-suite",
+      message: `no anchor/computed suite for ${suites} in this build: no slot could be verified, the verdict degrades wholly`,
+    });
   }
 
   const minimum = options.minimumMarker ?? "unsigned";

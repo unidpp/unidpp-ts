@@ -1,9 +1,11 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { RevocationRecord, TierAPack } from "@unidpp/model";
 import { buildLaptop } from "@unidpp/model/fixtures";
 import { CryptoSlots, HmacSha256Slot, WebCryptoEcdsaSlot } from "../src/crypto.js";
 import { generateEcdsaKey, hmacKey, signPack } from "../src/signer.js";
+import { keyIdOf } from "../src/slotPolicy.js";
 import { verifyTierAPack } from "../src/tierA.js";
+import { cosignedPack, fixture93Anchors, p256OnlyAnchors, pureSm2Pack } from "./fixtures.js";
 
 const NOW = "2027-06-01T12:00:00Z";
 const LOG_AS_OF = "2027-05-30T00:00:00Z"; // 2 days old
@@ -136,7 +138,7 @@ describe("tier-a verification (browser demo path)", () => {
     expect(verdict.achievedMarker).toBe("self-declared");
   });
 
-  it("fails unanchored keys (unknown trust anchor)", async () => {
+  it("degrades on unanchored keys (UnknownKey: the trust configuration does not cover the signer)", async () => {
     const key = await generateEcdsaKey("P-256");
     const pack = await buildPack([]);
     const framing = await signPack(key, pack, "k1", "2027-05-30T00:00:00Z");
@@ -144,9 +146,12 @@ describe("tier-a verification (browser demo path)", () => {
       anchors: new Map(), // empty cache
       now: NOW,
     });
-    expect(verdict.outcome).toBe("fail");
+    expect(verdict.outcome).toBe("degraded");
     expect(verdict.coverage.anchorCoverage).toBe(0);
-    expect(verdict.findings.some((f) => f.code === "key-unanchored")).toBe(true);
+    expect(verdict.coverage.signatures.verified).toBe(0);
+    const finding = verdict.findings.find((f) => f.code === "key-unanchored");
+    expect(finding?.severity).toBe("warning");
+    expect(finding?.message).toContain("pins nothing");
   });
 
   it("applies revocation reason semantics across readings", async () => {
@@ -206,5 +211,82 @@ describe("tier-a verification (browser demo path)", () => {
     expect(verdict.outcome).toBe("pass");
     expect(verdict.coverage.signatures.verified).toBe(2);
     expect(verdict.coverage.anchorCoverage).toBe(1);
+  });
+});
+
+describe("multi-suite slot policy (sovereign co-signature model, TODO 93)", () => {
+  it("co-signed pack: the P-256 slot verifies, the SM2 slot degrades with an explicit reason", async () => {
+    const verdict = await verifyTierAPack(cosignedPack(), { anchors: fixture93Anchors(), now: NOW });
+    expect(verdict.outcome).toBe("degraded");
+    expect(verdict.coverage.signatures).toEqual({ total: 2, verified: 1, failed: 0, unsupported: 1 });
+    expect(verdict.coverage.anchorCoverage).toBe(0.5);
+    expect(verdict.achievedMarker).toBe("third-party-attested");
+    const deferred = verdict.findings.find((f) => f.code === "suite-unsupported");
+    expect(deferred?.severity).toBe("warning");
+    expect(deferred?.message).toContain("sm2-sm3");
+    expect(deferred?.message).toContain("GM/T 0003");
+    expect(verdict.findings.some((f) => f.code === "signature-invalid")).toBe(false);
+  });
+
+  it("a strictly EU-classical anchor subset degrades the same SM2 slot — degradation is scoped per suite, not global", async () => {
+    const verdict = await verifyTierAPack(cosignedPack(), { anchors: p256OnlyAnchors(), now: NOW });
+    expect(verdict.outcome).toBe("degraded");
+    expect(verdict.coverage.signatures).toEqual({ total: 2, verified: 1, failed: 0, unsupported: 1 });
+  });
+
+  it("pure-SM2 pack degrades wholly: no anchor/computed suite for sm2 in this build, never a broken verdict", async () => {
+    const verdict = await verifyTierAPack(pureSm2Pack(), { anchors: fixture93Anchors(), now: NOW });
+    expect(verdict.outcome).toBe("degraded");
+    expect(verdict.coverage.signatures).toEqual({ total: 1, verified: 0, failed: 0, unsupported: 1 });
+    expect(verdict.achievedMarker).toBe("unsigned");
+    const finding = verdict.findings.find((f) => f.code === "no-computed-suite");
+    expect(finding?.message).toContain("no anchor/computed suite for sm2-sm3 in this build");
+    expect(verdict.findings.some((f) => f.code === "signature-invalid")).toBe(false);
+  });
+
+  it("tampered co-signed body fails on the P-256 slot (integrity, not degradation)", async () => {
+    const tampered = { ...cosignedPack(), operatorId: "urn:unidpp:actor:attacker" };
+    const verdict = await verifyTierAPack(tampered, { anchors: fixture93Anchors(), now: NOW });
+    expect(verdict.outcome).toBe("fail");
+    expect(verdict.coverage.signatures.failed).toBe(1); // the P-256 slot; the SM2 slot still defers
+    expect(verdict.coverage.signatures.unsupported).toBe(1);
+    expect(verdict.findings.some((f) => f.code === "signature-invalid" && f.message.includes("ecdsa-p256-sha256"))).toBe(true);
+  });
+
+  it("an unpinned P-256 key id degrades (UnknownKey) while the SM2 slot still defers", async () => {
+    const other = await generateEcdsaKey("P-256");
+    const verdict = await verifyTierAPack(cosignedPack(), {
+      anchors: new Map([["urn:unidpp:key:other", other.toAnchor()]]),
+      now: NOW,
+    });
+    expect(verdict.outcome).toBe("degraded");
+    expect(verdict.coverage.signatures.verified).toBe(0);
+    expect(verdict.coverage.signatures.unsupported).toBe(1);
+    expect(verdict.coverage.anchorCoverage).toBe(0);
+    const unknown = verdict.findings.find((f) => f.code === "key-unanchored");
+    expect(unknown?.message).toContain("k-9fdf5285b4a26c6e"); // names the unpinned slot key
+  });
+
+  it("anchor key ids derive in the Rust KeyId::of form (k- + sha256(suite code || raw point)[..16])", async () => {
+    const anchors = fixture93Anchors();
+    const p256 = anchors.get("k-9fdf5285b4a26c6e");
+    expect(p256).toBeDefined();
+    expect(await keyIdOf("ecdsa-p256-sha256", p256!)).toBe("k-9fdf5285b4a26c6e");
+    const sm2 = anchors.get("k-86f1d8653227e4ad");
+    expect(sm2).toBeDefined();
+    expect(await keyIdOf("sm2-sm3", sm2!)).toBeUndefined(); // opaque anchor material derives no id
+  });
+
+  it("without WebCrypto every slot defers explicitly — never a crash, never a fake pass", async () => {
+    vi.stubGlobal("crypto", { subtle: undefined });
+    try {
+      const verdict = await verifyTierAPack(cosignedPack(), { anchors: fixture93Anchors(), now: NOW });
+      expect(verdict.outcome).toBe("degraded");
+      expect(verdict.coverage.signatures).toEqual({ total: 2, verified: 0, failed: 0, unsupported: 2 });
+      expect(verdict.findings.some((f) => f.code === "no-computed-suite")).toBe(true);
+      expect(verdict.findings.some((f) => f.severity === "error")).toBe(false);
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });

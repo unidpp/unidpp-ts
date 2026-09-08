@@ -103,8 +103,20 @@ export class CryptoSlots {
   }
 }
 
+/**
+ * Whether WebCrypto is usable in this environment (a secure browser
+ * context or a runtime with a webcrypto global). Without it the
+ * default slots registry stays empty and every suite honestly defers
+ * instead of crashing or faking a verification.
+ */
+export function webCryptoAvailable(): boolean {
+  return typeof crypto !== "undefined" && crypto.subtle !== undefined;
+}
+
 export function defaultSlots(): CryptoSlots {
   const slots = new CryptoSlots();
-  slots.register(new WebCryptoEcdsaSlot());
+  if (webCryptoAvailable()) {
+    slots.register(new WebCryptoEcdsaSlot());
+  }
   return slots;
 }
