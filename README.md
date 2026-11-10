@@ -37,3 +37,13 @@ as deferred with its reason, and a CN terminal shows the same pack
 fully verified. Register additional suites by plugging a `CryptoSlot`
 (`packages/verify/src/crypto.ts`) — the policy reads the registry, it
 does not hard-code a suite list at call sites.
+
+## Releasing
+
+Releases are version tags: a pushed `v*` tag runs `.github/workflows/publish.yml`,
+which publishes the four `@unidpp` workspace packages to npm with provenance.
+The packages use npm trusted publishing, so the workflow needs a one-time link
+on npmjs.com: under each package's settings, add this repository and the
+`publish` workflow as a trusted publisher. The first publication of 0.1.0 was
+made by the owner from a maintainer machine, before trusted publishing was
+linked.
