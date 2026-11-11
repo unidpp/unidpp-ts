@@ -12,5 +12,9 @@
   "dependencies": {
     "@unidpp/model": "0.1.1",
     "@unidpp/resolver": "0.1.1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/unidpp/unidpp-ts.git"
   }
 }

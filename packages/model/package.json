@@ -9,5 +9,9 @@
   "exports": {
     ".": "./src/index.ts",
     "./fixtures": "./src/fixtures/index.ts"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/unidpp/unidpp-ts.git"
   }
 }
