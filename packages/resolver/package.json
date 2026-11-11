@@ -1,6 +1,6 @@
 {
   "name": "@unidpp/resolver",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "license": "MIT",
   "description": "UniDPP resolver: RFC 9264 linksets, context routing (profile x role x language x region), carrier URI translation (GS1 Digital Link, GB/T 33993)",
   "type": "module",
@@ -10,6 +10,6 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@unidpp/model": "0.1.0"
+    "@unidpp/model": "0.1.1"
   }
 }
