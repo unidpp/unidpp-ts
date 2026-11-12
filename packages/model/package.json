@@ -18,6 +18,6 @@
     "dist"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.build.json"
+    "build": "tsc -p tsconfig.build.json && cp -R src/schema dist/schema"
   }
 }

@@ -10,7 +10,7 @@
     ".": "./dist/index.js"
   },
   "dependencies": {
-    "@unidpp/model": "0.1.1",
+    "@unidpp/model": "0.1.3",
     "@unidpp/resolver": "0.1.1"
   },
   "repository": {
