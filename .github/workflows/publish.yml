@@ -29,6 +29,6 @@ jobs:
             if curl -sf "https://registry.npmjs.org/$encoded" | node -e "let d='';process.stdin.on('data',(c)=>d+=c).on('end',()=>{const vs=Object.keys(JSON.parse(d).versions||{});process.exit(vs.includes(process.argv[1])?0:1)})" "$version"; then
               echo "skip $name@$version (already published)"
             else
-              npm publish "$ws" --access public --provenance
+              (cd "$ws" && npm publish --access public --provenance)
             fi
           done
