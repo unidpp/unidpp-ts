@@ -145,11 +145,13 @@ export function policyCanonical(policy: Policy): Uint8Array {
 }
 
 async function hPair(left: Uint8Array, right: Uint8Array): Promise<Uint8Array> {
-  const [a, b] = [left, right].sort((x, y) => {
+  const sorted = [left, right].sort((x, y) => {
     const n = Math.min(x.length, y.length);
     for (let i = 0; i < n; i++) if (x[i] !== y[i]) return x[i]! - y[i]!;
     return x.length - y.length;
   });
+  const a = sorted[0]!;
+  const b = sorted[1]!;
   return hashIn(SPINE_NODE, [a, b]);
 }
 

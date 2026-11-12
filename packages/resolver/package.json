@@ -4,10 +4,10 @@
   "license": "MIT",
   "description": "UniDPP resolver: RFC 9264 linksets, context routing (profile x role x language x region), carrier URI translation (GS1 Digital Link, GB/T 33993)",
   "type": "module",
-  "main": "./src/index.ts",
-  "types": "./src/index.ts",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./dist/index.js"
   },
   "dependencies": {
     "@unidpp/model": "0.1.1"
@@ -15,5 +15,11 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/unidpp/unidpp-ts.git"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json"
   }
 }

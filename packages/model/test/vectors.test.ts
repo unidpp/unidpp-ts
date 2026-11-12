@@ -28,13 +28,13 @@ describe("the vendored golden vectors", () => {
   it("carries the corpus the manifest pins", () => {
     const manifest = readFileSync(path.join(vectorsDir, "vectors.sha256"), "utf8");
     for (const line of manifest.trim().split("\n")) {
-      const [digest, name] = line.split(/\s+/);
+      const [digest, name] = line.split(/\s+/) as [string, string];
       const bytes = readFileSync(path.join(vectorsDir, name));
       expect(sha256(bytes)).toBe(digest);
     }
   });
 
-  for (const name of readdirSync(vectorsDir).filter((f) => f.endsWith(".json"))) {
+  for (const name of readdirSync(vectorsDir).filter((f: string) => f.endsWith(".json"))) {
     it(`canonicalizes ${name} stably`, () => {
       const doc = JSON.parse(readFileSync(path.join(vectorsDir, name), "utf8"));
       const once = canonicalJson(doc);

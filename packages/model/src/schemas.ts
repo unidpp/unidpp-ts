@@ -5,11 +5,11 @@
  */
 import type { JsonSchema, ValidationResult } from "./validate.js";
 import { validate } from "./validate.js";
-import identifierSchema from "./schema/identifier.schema.json";
-import manifestSchema from "./schema/passport-manifest.schema.json";
-import linkSchema from "./schema/passport-link.schema.json";
-import eventSchema from "./schema/event.schema.json";
-import tierASchema from "./schema/tier-a.schema.json";
+import identifierSchema from "./schema/identifier.schema.json" with { type: "json" };
+import manifestSchema from "./schema/passport-manifest.schema.json" with { type: "json" };
+import linkSchema from "./schema/passport-link.schema.json" with { type: "json" };
+import eventSchema from "./schema/event.schema.json" with { type: "json" };
+import tierASchema from "./schema/tier-a.schema.json" with { type: "json" };
 
 const FILES: Record<string, JsonSchema> = {
   "identifier.schema.json": identifierSchema as unknown as JsonSchema,

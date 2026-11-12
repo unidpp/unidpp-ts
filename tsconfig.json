@@ -13,7 +13,7 @@
     "isolatedModules": true,
     "skipLibCheck": true,
     "noEmit": true,
-    "types": []
+    "types": ["node"]
   },
   "include": ["packages/*/src/**/*.ts", "packages/*/test/**/*.ts"]
 }

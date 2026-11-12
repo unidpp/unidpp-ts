@@ -4,14 +4,20 @@
   "license": "MIT",
   "description": "UniDPP core model types: identifiers, profile manifests, typed links, events, trust markers, capability classes, verdicts",
   "type": "module",
-  "main": "./src/index.ts",
-  "types": "./src/index.ts",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
-    ".": "./src/index.ts",
-    "./fixtures": "./src/fixtures/index.ts"
+    ".": "./dist/index.js",
+    "./fixtures": "./dist/fixtures/index.js"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/unidpp/unidpp-ts.git"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json"
   }
 }
