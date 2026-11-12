@@ -1,6 +1,6 @@
 {
   "name": "@unidpp/client",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "license": "MIT",
   "description": "UniDPP fetch-based clients: resolver, FERIN/19135 registry item lookup, passport retrieval; all responses as-of stamped; browser-capable",
   "type": "module",
