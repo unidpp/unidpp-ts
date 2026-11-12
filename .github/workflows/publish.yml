@@ -22,7 +22,7 @@ jobs:
       - run: npm run build
       - name: Publish the workspaces whose versions are new
         run: |
-          for ws in $(npm query .workspace --json | node -e 'let d="";process.stdin.on("data",(c)=>d+=c).on("end",()=>{for (const w of JSON.parse(d)) console.log(w.location)})'); do
+          for ws in packages/model packages/resolver packages/client packages/verify; do
             name=$(node -p "require('./$ws/package.json').name")
             version=$(node -p "require('./$ws/package.json').version")
             if npm view "$name@$version" version >/dev/null 2>&1; then
