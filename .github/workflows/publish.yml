@@ -18,5 +18,6 @@ jobs:
           registry-url: "https://registry.npmjs.org"
       - name: Upgrade npm for trusted publishing
         run: npm install -g npm@latest
+      - run: npm ci
       - run: npm run build --workspaces
       - run: npm publish --workspaces --access public --provenance
