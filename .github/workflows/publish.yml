@@ -25,7 +25,8 @@ jobs:
           for ws in packages/model packages/resolver packages/client packages/verify; do
             name=$(node -p "require('./$ws/package.json').name")
             version=$(node -p "require('./$ws/package.json').version")
-            if npm view "$name@$version" version >/dev/null 2>&1; then
+            encoded=${name//\//%2f}
+            if curl -sf "https://registry.npmjs.org/$encoded" | node -e "let d='';process.stdin.on('data',(c)=>d+=c).on('end',()=>{const vs=Object.keys(JSON.parse(d).versions||{});process.exit(vs.includes(process.argv[1])?0:1)})" "$version"; then
               echo "skip $name@$version (already published)"
             else
               npm publish "$ws" --access public --provenance
