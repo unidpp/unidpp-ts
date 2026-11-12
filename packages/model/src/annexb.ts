@@ -295,7 +295,7 @@ export interface CoverageEntry {
   as_of: string;
 }
 
-export interface CoverageReport {
+export interface AnnexBCoverageReport {
   subject: string;
   profile: string;
   verified_at: string;
@@ -303,7 +303,7 @@ export interface CoverageReport {
   entries: CoverageEntry[];
 }
 
-export async function reportCanonical(report: CoverageReport): Promise<Uint8Array> {
+export async function reportCanonical(report: AnnexBCoverageReport): Promise<Uint8Array> {
   const parts: Uint8Array[] = [
     text(report.subject),
     text(report.profile),
