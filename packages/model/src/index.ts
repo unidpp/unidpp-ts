@@ -11,3 +11,4 @@ export * from "./canonical.js";
 export * from "./validate.js";
 export * from "./schemas.js";
 export * from "./annexb.js";
+export * from "./tierCarrier.js";

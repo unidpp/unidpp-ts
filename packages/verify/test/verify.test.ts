@@ -5,7 +5,14 @@ import { CryptoSlots, HmacSha256Slot, WebCryptoEcdsaSlot } from "../src/crypto.j
 import { generateEcdsaKey, hmacKey, signPack } from "../src/signer.js";
 import { keyIdOf } from "../src/slotPolicy.js";
 import { verifyTierAPack } from "../src/tierA.js";
+import { verifyTierACarrier, carrierAnchors } from "../src/carrier.js";
+import { decodeTierAHex } from "@unidpp/model";
 import { cosignedPack, fixture93Anchors, p256OnlyAnchors, pureSm2Pack } from "./fixtures.js";
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const vectorsDir = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "test-vectors");
 
 const NOW = "2027-06-01T12:00:00Z";
 const LOG_AS_OF = "2027-05-30T00:00:00Z"; // 2 days old
@@ -41,6 +48,7 @@ describe("tier-a verification (browser demo path)", () => {
       now: NOW,
       requiredFreshness: "P30D",
     });
+    if (verdict.outcome !== "pass") console.log("CARRIER-DEBUG:", JSON.stringify(verdict.findings));
     expect(verdict.outcome).toBe("pass");
     expect(verdict.freshness).toBe("fresh");
     expect(verdict.coverage.signatures).toEqual({ total: 1, verified: 1, failed: 0, unsupported: 0 });
@@ -85,6 +93,7 @@ describe("tier-a verification (browser demo path)", () => {
       now: NOW,
       requiredFreshness: "P1D",
     });
+    if (verdict.outcome !== "pass") console.log("CARRIER-DEBUG:", JSON.stringify(verdict.findings));
     expect(verdict.outcome).toBe("pass");
     expect(stale.outcome).toBe("degraded");
     expect(stale.freshness).toBe("stale");
@@ -134,6 +143,7 @@ describe("tier-a verification (browser demo path)", () => {
       slots,
       now: NOW,
     });
+    if (verdict.outcome !== "pass") console.log("CARRIER-DEBUG:", JSON.stringify(verdict.findings));
     expect(verdict.outcome).toBe("pass");
     expect(verdict.achievedMarker).toBe("self-declared");
   });
@@ -208,6 +218,7 @@ describe("tier-a verification (browser demo path)", () => {
       anchors: new Map([["jp-key", jp.toAnchor()], ["eu-key", eu.toAnchor()]]),
       now: NOW,
     });
+    if (verdict.outcome !== "pass") console.log("CARRIER-DEBUG:", JSON.stringify(verdict.findings));
     expect(verdict.outcome).toBe("pass");
     expect(verdict.coverage.signatures.verified).toBe(2);
     expect(verdict.coverage.anchorCoverage).toBe(1);
@@ -288,5 +299,38 @@ describe("multi-suite slot policy (sovereign co-signature model, TODO 93)", () =
     } finally {
       vi.unstubAllGlobals();
     }
+  });
+});
+
+describe("the tier-a carrier verifier (the native framing)", () => {
+  it("verifies the corpus carrier against its pinned anchor", async () => {
+    const doc = JSON.parse(
+      readFileSync(path.join(vectorsDir, "pack.json"), "utf8"),
+    );
+    const payload = decodeTierAHex(doc.hex);
+    const anchors = carrierAnchors([
+      { keyId: doc.anchor.key_id, publicKeyHex: doc.anchor.public },
+    ]);
+    // The mint instant rides the carrier; the freshness window is the
+    // day the corpus names.
+    const verdict = await verifyTierACarrier(payload, {
+      anchors,
+      slots: (() => { const reg = new CryptoSlots(); reg.register(new WebCryptoEcdsaSlot(["ecdsa-p256-sha256"])); return reg; })(),
+      now: doc.decoded.as_of,
+    });
+    if (verdict.outcome !== "pass") console.log("CARRIER-DEBUG:", JSON.stringify(verdict.findings));
+    expect(verdict.outcome).toBe("pass");
+    expect(verdict.coverage.signatures.verified).toBe(1);
+    expect(verdict.coverage.signatures.failed).toBe(0);
+    expect(verdict.achievedMarker).toBe("third-party-attested");
+    // A swapped carrier byte fails the slot, loudly.
+    const tampered = { ...payload, eoId: "urn:docs:actor:impostor" };
+    const failed = await verifyTierACarrier(tampered, {
+      anchors,
+      slots: (() => { const reg = new CryptoSlots(); reg.register(new WebCryptoEcdsaSlot(["ecdsa-p256-sha256"])); return reg; })(),
+      now: doc.decoded.as_of,
+    });
+    expect(failed.outcome).toBe("fail");
+    expect(failed.coverage.signatures.failed).toBe(1);
   });
 });

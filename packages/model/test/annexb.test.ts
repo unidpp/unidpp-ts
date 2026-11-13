@@ -18,6 +18,7 @@ import {
   responseCanonical,
   statementCanonical,
 } from "../src/annexb.js";
+import { decodeTierAHex, encodeTierA } from "../src/tierCarrier.js";
 import { toHex } from "../src/canonical.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -75,5 +76,33 @@ describe("the Annex B binary canonical encoding", () => {
     expect(hex(mappingItemCanonical(doc.divergence as never))).toBe(
       doc.divergence_canonical_hex,
     );
+  });
+});
+
+describe("the tier-a carrier codec (the native framing)", () => {
+  it("decodes the corpus carrier and reproduces its bytes", () => {
+    const doc = fixture("pack.json");
+    const decoded = doc.decoded as {
+      product_id: string;
+      passport_id: string;
+      eo_id: string;
+      status: string;
+      safety: string;
+      validity: { from: string };
+      signatures: { key_id: string }[];
+    };
+    const payload = decodeTierAHex(doc.hex as string);
+    expect(payload.productId).toBe(decoded.product_id);
+    expect(payload.passportId).toBe(decoded.passport_id);
+    expect(payload.eoId).toBe(decoded.eo_id);
+    expect(payload.status).toBe(decoded.status);
+    expect(payload.safety).toBe(decoded.safety);
+    expect(payload.validity.from).toBe(decoded.validity.from);
+    expect(payload.validity.to).toBeNull();
+    expect(payload.logHead).toBeNull();
+    expect(payload.signatures).toHaveLength(1);
+    expect(payload.signatures[0]!.suite).toBe("ecdsa-p256");
+    expect(payload.signatures[0]!.keyId).toBe(decoded.signatures[0]!.key_id);
+    expect(toHex(encodeTierA(payload))).toBe(doc.hex);
   });
 });
