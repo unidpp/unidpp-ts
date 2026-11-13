@@ -1,6 +1,6 @@
 {
   "name": "@unidpp/verify",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "license": "MIT",
   "description": "UniDPP in-browser Tier-A verification: validate signature framings (pluggable crypto slots, WebCrypto ECDSA), produce verdicts with coverage reports",
   "type": "module",
