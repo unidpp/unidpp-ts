@@ -17,12 +17,19 @@ import {
   requestCanonical,
   responseCanonical,
   statementCanonical,
+  keyIdFor,
+  authorityPayloadCanonical,
 } from "../src/annexb.js";
 import { decodeTierAHex, encodeTierA } from "../src/tierCarrier.js";
 import { toHex } from "../src/canonical.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const vectorsDir = path.join(here, "..", "..", "..", "test-vectors");
+
+
+function hexToBytes(hex: string): Uint8Array {
+  return new Uint8Array((hex.match(/../g) ?? []).map((b) => parseInt(b, 16)));
+}
 
 function fixture(name: string): Record<string, unknown> {
   return JSON.parse(readFileSync(path.join(vectorsDir, name), "utf8"));
@@ -104,5 +111,33 @@ describe("the tier-a carrier codec (the native framing)", () => {
     expect(payload.signatures[0]!.suite).toBe("ecdsa-p256");
     expect(payload.signatures[0]!.keyId).toBe(decoded.signatures[0]!.key_id);
     expect(toHex(encodeTierA(payload))).toBe(doc.hex);
+  });
+});
+
+describe("the S13 trust layer's derivations", () => {
+  it("derives the F2 exchange's key ids (Annex B)", async () => {
+    const exchange = fixture("s13-signed-exchange.json");
+    const requester = hexToBytes(exchange.requester_public_hex as string);
+    const responder = hexToBytes(exchange.responder_public_hex as string);
+    expect(await keyIdFor("ed25519", requester)).toBe(
+      (exchange.signed_request as { signature: { key_id: string } }).signature.key_id,
+    );
+    expect(await keyIdFor("ed25519", responder)).toBe(
+      (exchange.signed_response as { signature: { key_id: string } }).signature.key_id,
+    );
+  });
+
+  it("derives the countersigned vector's authority key id and payload", async () => {
+    const doc = fixture("s13-countersigned.json");
+    const countersigned = doc.countersigned as {
+      authority: string;
+      authority_signature: { key_id: string };
+      signed: { response: Parameters<typeof authorityPayloadCanonical>[0] };
+    };
+    const authority = hexToBytes(doc.authority_public_hex as string);
+    expect(await keyIdFor("ed25519", authority)).toBe(countersigned.authority_signature.key_id);
+    expect(hex(authorityPayloadCanonical(countersigned.signed.response, doc.sequence as number))).toBe(
+      doc.authority_payload_hex,
+    );
   });
 });

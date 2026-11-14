@@ -62,8 +62,37 @@ export class WebCryptoEcdsaSlot implements CryptoSlot {
   }
 }
 
+/** WebCrypto Ed25519 slot: the S13 trust layer's suite (the
+ *  keyring's seeded keys are Ed25519; the anchors carry the raw
+ *  32-byte public). */
+export class WebCryptoEd25519Slot implements CryptoSlot {
+  readonly suites: readonly SuiteId[] = ["ed25519"];
+
+  async verify(input: SignatureInput): Promise<boolean> {
+    if (input.suite !== "ed25519") return false;
+    if (input.publicKey.format !== "raw-ed25519") return false;
+    try {
+      const key = await crypto.subtle.importKey(
+        "raw",
+        input.publicKey.bytes as unknown as ArrayBuffer,
+        "Ed25519",
+        false,
+        ["verify"],
+      );
+      return await crypto.subtle.verify(
+        "Ed25519",
+        key,
+        input.signature as unknown as ArrayBuffer,
+        input.payload as unknown as ArrayBuffer,
+      );
+    } catch {
+      return false;
+    }
+  }
+}
+
 /**
- * HMAC-SHA-256 slot for tests and deterministic conformance runs: a real
+ * HMAC-SHA-256 slot for tests and deterministic conformance runs: a real and deterministic conformance runs: a real
  * symmetric verifier demonstrating slot pluggability (not a mock — it
  * performs actual MAC verification).
  */
@@ -117,6 +146,7 @@ export function defaultSlots(): CryptoSlots {
   const slots = new CryptoSlots();
   if (webCryptoAvailable()) {
     slots.register(new WebCryptoEcdsaSlot());
+    slots.register(new WebCryptoEd25519Slot());
   }
   return slots;
 }

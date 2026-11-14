@@ -3,3 +3,4 @@ export * from "./tierA.js";
 export * from "./signer.js";
 export * from "./slotPolicy.js";
 export * from "./carrier.js";
+export * from "./s13.js";

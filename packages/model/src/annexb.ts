@@ -8,6 +8,8 @@
  * the suite fails. That is the cross-implementation contract.
  */
 
+import { toHex } from "./canonical.js";
+
 const encoder = new TextEncoder();
 
 export const SEGMENT_COMMITMENT = encoder.encode("UNIDPP-GRID/SEGMENT-COMMITMENT");
@@ -468,3 +470,84 @@ export function mappingItemCanonical(item: MappingItem): Uint8Array {
 }
 
 export { equalBytes };
+
+// --- the S13 trust layer's derivations (XB-6/7, Annex B) -----------------
+
+/** The S13 wire's envelope types (the signatif serde forms): the
+ *  canonical bytes are what each side signs. */
+export interface S13SignatureSlot {
+  suite: string;
+  key_id: string;
+  signature: number[] | Uint8Array | null;
+}
+
+export interface SignedS13Request {
+  request: S13Request;
+  requester: string;
+  signature: S13SignatureSlot;
+}
+
+export interface SignedS13Response {
+  response: S13Response;
+  signature: S13SignatureSlot;
+}
+
+/** The non-repudiable answer (XB-7): the policy authority
+ *  counter-signs the custodian's answer and its place in the
+ *  per-(subject, custodian) sequence. */
+export interface S13NonRepudiableResponse {
+  signed: SignedS13Response;
+  authority: string;
+  authority_signature: S13SignatureSlot;
+  sequence: number;
+}
+
+export type S13JournalEntry = SignedS13Request | SignedS13Response | S13NonRepudiableResponse;
+
+export interface S13Journal {
+  side: "verifier" | "custodian";
+  entries: S13JournalEntry[];
+}
+
+export interface S13Decision {
+  request_digest_hex: string;
+  outcome: string;
+  governing_policy: string;
+  governing_policy_version: number;
+}
+
+/** The signatif suite codes (Annex B): the one byte a key id's
+ *  digest rides over, ahead of the public key bytes. */
+export const SUITE_CODES: Readonly<Record<string, number>> = {
+  "ecdsa-p256": 1,
+  sm2: 2,
+  "ml-dsa-44": 3,
+  "ml-dsa-65": 4,
+  "ml-dsa-87": 5,
+  ed25519: 6,
+  "slh-dsa-128s": 7,
+  "slh-dsa-192s": 8,
+};
+
+/** `k-` plus the first sixteen hex characters of sha256 over the
+ *  suite code byte and the public key bytes (Annex B). */
+export async function keyIdFor(suite: string, publicKey: Uint8Array): Promise<string> {
+  const code = SUITE_CODES[suite];
+  if (code === undefined) throw new Error(`unknown suite \`${suite}\``);
+  const input = new Uint8Array(1 + publicKey.length);
+  input[0] = code;
+  input.set(publicKey, 1);
+  return `k-${toHex(await sha256(input)).slice(0, 16)}`;
+}
+
+/** The authority's counter-signature payload (XB-7): the answer's
+ *  identity and place — request digest, sequence, governing policy,
+ *  version — each length-prefixed. */
+export function authorityPayloadCanonical(response: S13Response, sequence: number): Uint8Array {
+  return canonicalFields([
+    asBytes(response.request_digest),
+    leU64(sequence),
+    text(response.governing_policy),
+    leU64(response.governing_policy_version),
+  ]);
+}
